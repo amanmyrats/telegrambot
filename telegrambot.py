@@ -29,10 +29,17 @@ def categorize_message(message):
     return None, None
 
 def scrape_and_forward():
+    print('starting scrape_and_forward')
+    print('starting scrape_and_forward')
+    print('starting scrape_and_forward')
     with TelegramClient(phone, api_id, api_hash) as client:
+        print('inside with')
+        print('inside with')
+        print('inside with')
         for group_to_scrape in groups_to_scrape:
             try:
                 messages = client.get_messages(group_to_scrape, limit=10)  # Adjust the limit as needed
+                print('messages:', messages)
                 for message in messages:
                     text = message.message
                     keyword_found, forward_group = categorize_message(text)
