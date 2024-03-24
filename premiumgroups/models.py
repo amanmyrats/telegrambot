@@ -14,14 +14,14 @@ class Sector(models.Model):
     name = models.CharField(max_length=255)
 
     def __str__(self):
-        return self.sector
+        return self.name
     
 
 class Location(models.Model):
     name = models.CharField(max_length=255)
     
     def __str__(self):
-        return self.keyword
+        return self.name
     
 
 class SectorKeyword(models.Model):
