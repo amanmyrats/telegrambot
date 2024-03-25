@@ -5,9 +5,9 @@ from django.conf import settings
 from django.shortcuts import render
 
 from premiumgroups.models import (
-    PremiumGroup, SectorKeyword, LocationKeyword
+    PremiumGroup, SectorKeyword, LocationKeyword, 
 )
-from .models import LastRead
+from .models import LastRead, FailedMessage
 
 
 BOT_URL = f'{settings.TELEGRAM_BOT_URL}{settings.TELEGRAM_TOKEN}'
@@ -18,6 +18,7 @@ def keep_fetching():
     while True:
         time.sleep(2)
         try:
+            resend_failed_messages()
             fetch_messages()
         except Exception as e:
             print('error when fetching', e)
@@ -72,6 +73,7 @@ def filter(result):
     chat_title = get_chat_title(message)
     users_text = get_users_text(message)
     print('filtering')
+    print(result)
     print('full_text:', full_text)
     print('chat_title:', chat_title)
     print('users_text:', users_text)
@@ -115,22 +117,56 @@ def filter(result):
                 send_message(
                     pg.chat_id, 
                     full_text,
-                    result['update_id']
+                    generate_inline_keyboard(get_message_link(message), get_user_link(message))
                     )
 
 
-def send_message(chat_id, text_to_send, update_id):
+def send_message(chat_id, text_to_send, inline_keyboard):
     print('sending message')
-    print(f"{BOT_URL}/sendMessage?chat_id={chat_id}&text={text_to_send}")
-    resp = requests.get(f"{BOT_URL}/sendMessage?chat_id={chat_id}&text={text_to_send}")
-    print('Message sent or not:',resp.json)
-    if resp.json()['ok']==True:
-        print('message sent successfully')
-    else:
-        # TODO
-        # if messages is failed to send, then save it to database
-        # later every time fetch_messages begins, then send unsend messages first
-        print('Failed to send a message')
+    data = {
+        'chat_id':chat_id, 
+        'text':text_to_send, 
+        'reply_markup':{
+            'inline_keyboard': inline_keyboard
+        }
+    }
+    try:
+        resp = requests.post(f"{BOT_URL}/sendMessage", json=data)
+        print('Message status:',resp.json())
+        if resp.json()['ok']==True:
+            print('message sent successfully')
+            remove_from_failed_messages(data['chat_id'], data['text'], data['reply_markup'])
+        else:
+            print('Failed to send a message')
+            add_to_failed_messages(data['chat_id'], data['text'], data['reply_markup'])
+    except:
+        print('Network error')
+        add_to_failed_messages(data['chat_id'], data['text'], data['reply_markup'])
+
+
+
+def add_to_failed_messages(chat_id, text, reply_markup):
+    # Check if text already exists
+    count_text= FailedMessage.objects.filter(text=text).count()
+    if count_text==0:
+        failed_message = FailedMessage()
+        failed_message.chat_id = chat_id
+        failed_message.text = text
+        failed_message.reply_markup = reply_markup
+        failed_message.save()
+
+
+def remove_from_failed_messages(chat_id, text, reply_markup):
+    # Check if it exists
+    is_exist = FailedMessage.objects.filter(chat_id=chat_id, text=text, reply_markup=reply_markup).exists()
+    if is_exist:
+        FailedMessage.objects.filter(chat_id=chat_id, text=text, reply_markup=reply_markup).delete()
+
+
+def resend_failed_messages():
+    failed_messages = FailedMessage.objects.all()
+    for fm in failed_messages:
+        send_message(fm.chat_id, fm.text, fm.reply_markup)
 
 
 def generate_text_to_send(message, keyword):
@@ -147,6 +183,13 @@ def generate_text_to_send(message, keyword):
         {text}\
         "
     return text_to_send
+
+
+def generate_inline_keyboard(reply_link, user_link):
+    return [
+        [{'text':'Send Message', 'url':'https://t.me/c/1610051836/624474'},
+        {'text':'See User', 'url':'tg://user?id=1184644318'}]
+    ]
 
 
 def get_full_text(message):
