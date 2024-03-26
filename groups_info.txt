@@ -1,0 +1,7 @@
+
+# Keywords and corresponding group IDs to forward messages to
+keyword_groups = {
+    'emlak': -4182513036,   # Group ID where messages with 'emlak' will be forwarded
+    'transfer': -4143899596,   # Group ID where messages with 'transfer' will be forwarded
+    # Add more mappings as needed
+}

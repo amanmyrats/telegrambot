@@ -1,25 +1,68 @@
 import time
 import requests
+import threading
 
 from django.conf import settings
 from django.shortcuts import render
+from django.http import JsonResponse, HttpRequest
+from django.conf import settings
 
 from premiumgroups.models import (
     PremiumGroup, SectorKeyword, LocationKeyword, 
 )
-from .models import LastRead, FailedMessage
+from .models import LastRead, FailedMessage, BotState
 
 
 BOT_URL = f'{settings.TELEGRAM_BOT_URL}{settings.TELEGRAM_TOKEN}'
 
+def check_status_view(request):
+    is_running = get_bot_status()
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        if is_running:
+            return JsonResponse({'data':is_running})
+        else:
+            return JsonResponse({'error_message': is_running}, status=500)
+    else:
+        return render(request, 'bot/status.html', {'status': is_running})
+
+def start_view(request):
+    bot_status = {
+      "message": "Bot is running!",
+    }
+    thread_test = threading.Thread(target=keep_fetching())
+    thread_test.start()
+    # keep_fetching()
+    return JsonResponse(bot_status)
+
+
+def stop_view(request):
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        is_running = set_bot_status(False)
+        return JsonResponse({'data':is_running})
+
 
 def keep_fetching():
     print('start fetching')
-    while True:
-        time.sleep(2)
+    # set_bot_status(True)
+    thread_set = threading.Thread(target=set_bot_status, args=(True,))
+    thread_set.start()
+    thread_set.join()  # Wait for the thread to finish
+    is_running = True
+    while is_running:
+        time.sleep(3)
+        thread_get = threading.Thread(target=get_bot_status)
+        thread_get.start()
+        thread_get.join()  # Wait for the thread to finish
+        is_running = get_bot_status()
         try:
-            resend_failed_messages()
-            fetch_messages()
+            # resend_failed_messages()
+            thread = threading.Thread(target=resend_failed_messages)
+            thread.start()
+            thread.join()  # Wait for the thread to finish
+            # await fetch_messages()
+            thread2 = threading.Thread(target=fetch_messages)
+            thread2.start()
+            thread2.join()  # Wait for the thread to finish
         except Exception as e:
             print('error when fetching', e)
             pass
@@ -114,11 +157,11 @@ def filter(result):
             for pg in pgs_to_send_message:    
                 print('sending filtered message')
 
-                send_message(
-                    pg.chat_id, 
-                    full_text,
-                    generate_inline_keyboard(get_message_link(message), get_user_link(message))
-                    )
+                # send_message(
+                #     pg.chat_id, 
+                #     full_text,
+                #     generate_inline_keyboard(get_message_link(message), get_user_link(message))
+                #     )
 
 
 def send_message(chat_id, text_to_send, inline_keyboard):
@@ -164,24 +207,15 @@ def remove_from_failed_messages(chat_id, text, reply_markup):
 
 
 def resend_failed_messages():
+    print('resending failed messages')
     failed_messages = FailedMessage.objects.all()
     for fm in failed_messages:
         send_message(fm.chat_id, fm.text, fm.reply_markup)
 
 
 def generate_text_to_send(message, keyword):
-    chat_title = get_chat_title(message)
-    sender_username = get_sender_username(message)
-    sender_fullname = get_sender_fullname(message)
     text = get_full_text(message)
-    text_to_send = f"Chat:{chat_title}\n\
-        username: @{sender_username}\n\
-        Name: {sender_fullname}\n\
-        \n\
-        Keyword: {keyword}\n\
-        \n\
-        {text}\
-        "
+    text_to_send = f"{text}\nKeyword: {keyword}"
     return text_to_send
 
 
@@ -222,6 +256,7 @@ def get_chat_title(message):
     else:
         return ''
 
+
 def get_user_link(message):
     entities = message.get('entities')
     if entities is None:
@@ -241,6 +276,7 @@ def get_message_link(message):
             if '//t.me/c/' in entity['url']:
                 return entity['url']
 
+
 def get_sender_username(message):
     # forward_origin
     text = get_full_text(message)
@@ -251,30 +287,6 @@ def get_sender_username(message):
         return parts[1]
     else:
         return ''
-
-
-def get_sender_fullname(message):
-    # forward_origin
-    fullname = ''
-    first_name = ''
-    last_name = ''
-    sender = None
-    if 'forward_origin' in message:
-        sender = message.get('forward_origin').get('sender_user')
-    else:
-        sender = message.get('from')
-    if sender is None:
-        return ''
-    first_name = sender.get('first_name')
-    last_name = sender.get('last_name')
-
-    if first_name is not None:
-        fullname += first_name
-    if last_name is not None:
-        if fullname: 
-            fullname += " "
-        fullname += last_name
-    return fullname
 
 
 def update_last_read_message(update_id):
@@ -296,30 +308,22 @@ def update_last_read_message(update_id):
             print('error when updating update_id to database:', update_id)
 
 
-# {
-#     "ok":true,
-#     "result":[
-#         {
-#         "update_id":963437181,
-#         "message":
-#             {
-#             "message_id":18,
-#             "from":{"id":6613204121,"is_bot":false,"first_name":"Aman","username":"amanmyrats"},
-#             "chat":{"id":-4143214173,"title":"Toplu mesajlar","type":"group","all_members_are_administrators":true},
-#             "date":1710919342,"text":"Test"
-#             }
-#         },
-#         {
-#             "update_id":963437182,
-#             "message":
-#                 {
-#                   "message_id":19,
-#                   "from":{"id":6613204121,"is_bot":false,"first_name":"Aman","username":"amanmyrats"},
-#                   "chat":{"id":-4143214173,"title":"Toplu mesajlar","type":"group","all_members_are_administrators":true},
-#                   "date":1710919352,
-#                   "text":"Test2"
-#                 }
-#         }
-#     ]
-# }
+def get_bot_status():
+    is_exists = BotState.objects.all().exists()
+    if not is_exists:
+        new_status = BotState()
+        new_status.is_running = False
+        new_status.save()
+    existing_status = BotState.objects.all().first()
+    return existing_status.is_running
 
+
+def set_bot_status(status=False):
+    is_exists = BotState.objects.all().exists()
+    if not is_exists:
+        new_status = BotState()
+        new_status.is_running = status
+        new_status.save()
+    existing_status = BotState.objects.all().first()
+    existing_status.is_running=status
+    existing_status.save()

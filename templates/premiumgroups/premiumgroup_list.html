@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+<div class="container">
+    <table class="table table-hover table-bordered">
+        <thead>
+            <tr>
+                <th scope="col">Premium Group Name</th>
+                <th scope="col">Location</th>
+                <th scope="col">Sector</th>
+                <th scope="col">Chat ID</th>
+                <th scope="col">Members</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for pg in pgs %}
+            <tr>
+                <td>{{pg.name}}</td>
+                <td>{{pg.location.name}}</td>
+                <td>{{pg.sector.name}}</td>
+                <td>{{pg.chat_id}}</td>
+                <td>
+                    <span class="badge bg-warning"></span>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+  </div>
+  
+{% endblock %}

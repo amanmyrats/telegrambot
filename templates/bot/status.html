@@ -1,0 +1,129 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container" style="display: flex; flex-direction: column; justify-content: center;">
+    <div class="button-container" 
+    style="display: flex;justify-content: center;">
+
+    <!-- <a href="{% url 'bot-start' %}"> -->
+      <button id="startButton" class="btn btn-primary m-5 px-5">
+        Start
+      </button>
+    <!-- </a> -->
+    <!-- <a href="{% url 'bot-stop' %}"> -->
+      <button id="stopButton" class="btn btn-danger m-5 px-5">
+        Stop
+      </button>
+    <!-- </a> -->
+      
+    </div>
+    <div id="status" 
+    style="border: 2px; border-radius: 10px; padding: 10px; margin-top: 10px; 
+    background-color: rgb(205, 248, 233); min-height: 50vh;">
+    {% if status %}
+      Bot is running 
+    {% else %}
+      Bot is dead
+    {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block jscript %}
+<script>
+  let isRunning = false;
+  errorList = [];
+
+  window.onload = function() {
+  // Your function to be called when the document is ready
+  fetchStatus();
+};
+
+
+function startFetching() {
+  if (isRunning) {
+    return;
+  }
+  console.log('keep working')
+  statusDiv.innerHTML += "Sending request...<br>";
+  
+  $.ajax({
+    url: "/bot/start/",
+    method: "GET",
+    dataType: "json", // Expect JSON response
+    success: function(data) {
+      // Process the received data (e.g., display status)
+      console.log("Bot Status:", data);
+      isRunning = true;
+      startButton.disabled = true;
+      startButton.innerText = "Working...";
+
+    },
+    error: function(jqXHR, textStatus, errorThrown) {
+      console.error("Error getting bot status:", textStatus, errorThrown);
+      isRunning = false
+      startButton.disabled = false;
+      startButton.innerText = "Start";
+
+    }
+  });
+}
+
+function stopFetching() {
+  
+
+  $.ajax({
+    url: "/bot/stop/",
+    method: "GET",
+    dataType: "json", // Expect JSON response
+    success: function(data) {
+      // Process the received data (e.g., display status)
+      console.log("Bot stopped successfully:", data);
+      isRunning = false;
+      startButton.disabled = false;
+      startButton.innerText = "Start";
+      
+    },
+    error: function(jqXHR, textStatus, errorThrown) {
+      console.error("Error stopping bot:", textStatus, errorThrown);
+    }
+  });
+}
+
+function fetchStatus(){
+
+  $.ajax({
+    url: "/bot/status/",
+    method: "GET",
+    dataType: "json", // Expect JSON response
+    success: function(data) {
+      // Process the received data (e.g., display status)
+      console.log("Bot Status:", data);
+      startButton.innerText = "Working..."
+      startButton.disabled = true
+      statusDiv.innerText = "Bot is working...";
+
+      // Repeat after 3 seconds if running is still true
+      setTimeout(fetchStatus, 1000);
+    },
+    error: function(jqXHR, textStatus, errorThrown) {
+      console.error("Error getting bot status:", textStatus, errorThrown);
+      startButton.innerText = "Start"
+      startButton.disabled = false
+      statusDiv.innerText = "Bot is dead...";
+
+      // You can handle errors here, like retrying after a delay
+      setTimeout(fetchStatus, 1000);
+    }
+  });
+}
+
+// Bind start and stop functions to buttons (assuming you have buttons with these IDs)
+startButton = document.getElementById("startButton");
+stopButton = document.getElementById("stopButton");
+statusDiv = document.getElementById("status");
+
+startButton.addEventListener("click", startFetching);
+stopButton.addEventListener("click", stopFetching);
+</script>
+{% endblock %}
