@@ -38,6 +38,8 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
 
+    'celery', 
+
     'publicgroups', 
     'premiumgroups', 
     'bot',
@@ -82,7 +84,7 @@ WSGI_APPLICATION = 'core.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'NAME': BASE_DIR / 'telegrambot.sqlite3',
     }
 }
 
@@ -146,3 +148,8 @@ GUNICORN_CMD_ARGS = [
 ]
 
 ASGI_APPLICATION = "core.asgi.application"
+
+# CELERY_BROKER_URL = 'amqp://aman:aman@localhost:5672//'  # Configure message broker (e.g., RabbitMQ)
+# CELERY_RESULT_BACKEND = 'djcelery'  # Use Django ORM for storing task results (optional)
+CELERY_ACCEPT_CONTENT = ['application/json']  # Recommended for JSON serialization
+CELERY_TASK_SERIALIZER = 'json'  # Recommended for JSON serialization
