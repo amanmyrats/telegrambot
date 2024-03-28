@@ -196,12 +196,12 @@ def generate_text_to_send(message, keyword):
     return text_to_send
 
 
-def generate_inline_keyboard(get_message_button, get_user_button):
+def generate_inline_keyboard(message_button, user_button):
     inline_keyboard = [[]]
-    if get_message_button:
-        inline_keyboard[0].append(get_message_button)
-    if get_user_button:
-        inline_keyboard[0].append(get_user_button)
+    if message_button:
+        inline_keyboard[0].append(message_button)
+    if user_button:
+        inline_keyboard[0].append(user_button)
 
     return inline_keyboard
 
@@ -244,6 +244,8 @@ def get_chat_title(message):
 
 
 def get_user_link(message):
+    print('inside get_user_link')
+    print('searching for message:', message)
     user_link = None
     if message is None:
         return user_link
@@ -251,8 +253,11 @@ def get_user_link(message):
     if entities is None:
         return user_link
     for entity in entities:
+        print('entity:', entity)
         if 'url' in entity:
-            if 'user?id=' in entity['url']:
+            print('has url')
+            if 'user' in entity['url']:
+                print('has user')
                 user_link = entity['url']
     return user_link
     
@@ -273,7 +278,10 @@ def get_message_link(message):
 
 
 def get_user_button(message):
+
     user_link = get_user_link(message)
+    print('get_user_button, user_link:', user_link)
+    print('mesage:', message)
     if user_link:
         return {'text':'See User', 'url':user_link}
     else:
