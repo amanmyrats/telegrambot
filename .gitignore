@@ -58,7 +58,7 @@ cover/
 # Django stuff:
 *.log
 local_settings.py
-telegrambot.sqlite3
+# telegrambot.sqlite3
 db.sqlite3
 db.sqlite3-journal
 
