@@ -18,7 +18,8 @@ class LastRead(models.Model):
 class FailedMessage(models.Model):
     chat_id = models.CharField(max_length=255)
     text = models.CharField(max_length=5000, unique=True)
-    reply_markup = models.CharField(max_length=5000)
+    inline_keyboard = models.CharField(max_length=5000)
+    error_message = models.CharField(max_length=5000)
     
     def __str__(self):
         return f"{self.text}"

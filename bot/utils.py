@@ -1,4 +1,5 @@
 import requests
+import ast
 
 from django.conf import settings
 
@@ -54,6 +55,8 @@ def filter(result):
             message = result['edited_message']
         except:
             message = None
+    if message is None:
+        return
     full_text = get_full_text(message)
     chat_title = get_chat_title(message)
     users_text = get_users_text(message)
@@ -63,7 +66,7 @@ def filter(result):
     print('chat_title:', chat_title)
     print('users_text:', users_text)
 
-    if message is None or full_text is None:
+    if full_text is None:
         return
     sector_keywords = SectorKeyword.objects.all()
     location_keywords = LocationKeyword.objects.all()
@@ -98,11 +101,10 @@ def filter(result):
 
             for pg in pgs_to_send_message:    
                 print('sending filtered message')
-
                 send_message(
-                    pg.chat_id, 
-                    full_text,
-                    generate_inline_keyboard(get_message_link(message), get_user_link(message))
+                        pg.chat_id, 
+                        full_text,
+                        generate_inline_keyboard(get_message_button(message), get_user_button(message))
                     )
 
 
@@ -115,44 +117,77 @@ def send_message(chat_id, text_to_send, inline_keyboard):
             'inline_keyboard': inline_keyboard
         }
     }
+    # if see_user_button:
+    #     if data.get('reply_markup') is None:
+    #         data['reply_markup'] = {}
+    #     if data['reply_markup'].get('inline_keyboard') is None:
+    #         data['reply_markup']['inline_keyboard'] = []
+    #     data['reply_markup']['inline_keyboard'].append([see_user_button])
+    # if send_message_button:
+    #     if data.get('reply_markup') is None:
+    #         data['reply_markup'] = {}
+    #     if data['reply_markup'].get('inline_keyboard') is None:
+    #         data['reply_markup']['inline_keyboard'] = []
+    #     data['reply_markup']['inline_keyboard'].append([send_message_button])
+        
+
+
+    print('data to be sent')
+    print(data)
+
+    # {
+    #     'inline_keyboard': [[{'text': 'Send Message', 'url': 'https://t.me/c/1610051836/624474'}, 
+    #                 {'text': 'See User', 'url': 'tg://user?id=1184644318'}]]
+    # }
     try:
         resp = requests.post(f"{BOT_URL}/sendMessage", json=data)
         print('Message status:',resp.json())
         if resp.json()['ok']==True:
             print('message sent successfully')
-            remove_from_failed_messages(data['chat_id'], data['text'], data['reply_markup'])
+            remove_from_failed_messages(data['chat_id'], data['text'], inline_keyboard)
         else:
             print('Failed to send a message')
-            add_to_failed_messages(data['chat_id'], data['text'], data['reply_markup'])
-    except:
+            print(resp.json())
+            add_to_failed_messages(data['chat_id'], data['text'], inline_keyboard, resp.json())
+    except Exception as e:
         print('Network error')
-        add_to_failed_messages(data['chat_id'], data['text'], data['reply_markup'])
+        print(str(e))
+        add_to_failed_messages(data['chat_id'], data['text'], inline_keyboard, str(e))
 
 
-
-def add_to_failed_messages(chat_id, text, reply_markup):
+def add_to_failed_messages(chat_id, text, inline_keyboard, error_message):
     # Check if text already exists
-    count_text= FailedMessage.objects.filter(text=text).count()
+    count_text= FailedMessage.objects.filter(chat_id=chat_id, text=text).count()
     if count_text==0:
         failed_message = FailedMessage()
         failed_message.chat_id = chat_id
         failed_message.text = text
-        failed_message.reply_markup = reply_markup
+        failed_message.inline_keyboard = inline_keyboard
+        failed_message.error_message = error_message
         failed_message.save()
 
 
-def remove_from_failed_messages(chat_id, text, reply_markup):
+def remove_from_failed_messages(chat_id, text, inline_keyboard):
     # Check if it exists
-    is_exist = FailedMessage.objects.filter(chat_id=chat_id, text=text, reply_markup=reply_markup).exists()
+    is_exist = FailedMessage.objects.filter(chat_id=chat_id, text=text, inline_keyboard=inline_keyboard).exists()
     if is_exist:
-        FailedMessage.objects.filter(chat_id=chat_id, text=text, reply_markup=reply_markup).delete()
+        FailedMessage.objects.filter(chat_id=chat_id, text=text, inline_keyboard=inline_keyboard).delete()
 
 
 def resend_failed_messages():
-    print('resending failed messages')
+    print('Resending failed messages')
     failed_messages = FailedMessage.objects.all()
     for fm in failed_messages:
-        send_message(fm.chat_id, fm.text, fm.reply_markup)
+        try:
+            print('chat_id', fm.chat_id)
+            print('text', fm.text)
+            print('inline_keyboard', fm.inline_keyboard)
+            send_message(fm.chat_id, fm.text, ast.literal_eval(fm.inline_keyboard))
+        except Exception as e:
+            print('Failed to sending again:', e)
+            fm.error_message = str(e)
+            fm.save()
+    print('Resending failed messages is done')
 
 
 def generate_text_to_send(message, keyword):
@@ -161,14 +196,19 @@ def generate_text_to_send(message, keyword):
     return text_to_send
 
 
-def generate_inline_keyboard(reply_link, user_link):
-    return [
-        [{'text':'Send Message', 'url':'https://t.me/c/1610051836/624474'},
-        {'text':'See User', 'url':'tg://user?id=1184644318'}]
-    ]
+def generate_inline_keyboard(get_message_button, get_user_button):
+    inline_keyboard = [[]]
+    if get_message_button:
+        inline_keyboard[0].append(get_message_button)
+    if get_user_button:
+        inline_keyboard[0].append(get_user_button)
+
+    return inline_keyboard
 
 
 def get_full_text(message):
+    if message is None:
+        return ''
     text = message.get('text')
     if text is None:
         text = message.get('caption')
@@ -178,6 +218,8 @@ def get_full_text(message):
 
 
 def get_users_text(message):
+    if message is None:
+        return ''
     text = get_full_text(message)
     if text is None:
         return ''
@@ -189,6 +231,8 @@ def get_users_text(message):
     
 
 def get_chat_title(message):
+    if message is None:
+        return ''
     text = get_full_text(message)
     if text is None:
         return ''
@@ -200,26 +244,53 @@ def get_chat_title(message):
 
 
 def get_user_link(message):
+    user_link = None
+    if message is None:
+        return user_link
     entities = message.get('entities')
     if entities is None:
-        return ''
+        return user_link
     for entity in entities:
         if 'url' in entity:
             if 'user?id=' in entity['url']:
-                return entity['url']
+                user_link = entity['url']
+    return user_link
+    
 
 
 def get_message_link(message):
+    message_link = None
+    if message is None:
+        return message_link
     entities = message.get('entities')
     if entities is None:
-        return ''
+        return message_link
     for entity in entities:
         if 'url' in entity:
             if '//t.me/c/' in entity['url']:
-                return entity['url']
+                message_link = entity['url']
+    return message_link
+
+
+def get_user_button(message):
+    user_link = get_user_link(message)
+    if user_link:
+        return {'text':'See User', 'url':user_link}
+    else:
+        return None
+
+
+def get_message_button(message):
+    message_link = get_message_link(message)
+    if message_link:
+        return {'text':'Send Message', 'url':message_link}
+    else:
+        return None
 
 
 def get_sender_username(message):
+    if message is None:
+        return ''
     # forward_origin
     text = get_full_text(message)
     if text is None:

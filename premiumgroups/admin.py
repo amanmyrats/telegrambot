@@ -10,14 +10,15 @@ from .models import (
 admin.site.register(PremiumGroup)
 # admin.site.register(Sector)
 # admin.site.register(Location)
-admin.site.register(SectorKeyword)
-admin.site.register(LocationKeyword)
+# admin.site.register(SectorKeyword)
+# admin.site.register(LocationKeyword)
 
 
 
 class SectorKeywordInline(admin.TabularInline):  # Use TabularInline for list view
     model = SectorKeyword
     # readonly_fields = ['sector', 'keyword']  # Make sector and keyword fields read-only
+
 
 class SectorAdmin(admin.ModelAdmin):
     inlines = [SectorKeywordInline]
@@ -31,11 +32,13 @@ class SectorAdmin(admin.ModelAdmin):
         # return reverse('admin:yourapp.sectorkeyword_changelist') + f'?sector__id={obj.pk}'
     
     list_display = ['name', ]  # Add 'get_related_link' column
-    readonly_fields = ['name']  # Make the name field read-only in the edit form
+    # readonly_fields = ['name']  # Make the name field read-only in the edit form
+
 
 class LocationKeywordInline(admin.TabularInline):  # Use TabularInline for list view
     model = LocationKeyword
     # readonly_fields = ['location', 'keyword']  # Make location and keyword fields read-only
+
 
 class LocationAdmin(admin.ModelAdmin):
     inlines = [LocationKeywordInline]
@@ -49,7 +52,7 @@ class LocationAdmin(admin.ModelAdmin):
         # return reverse('admin:yourapp.locationkeyword_changelist') + f'?location__id={obj.pk}'
     
     list_display = ['name', ]  # Add 'get_related_link' column
-    readonly_fields = ['name']  # Make the name field read-only in the edit form
+    # readonly_fields = ['name']  # Make the name field read-only in the edit form
 
 
 admin.site.register(Sector, SectorAdmin)
