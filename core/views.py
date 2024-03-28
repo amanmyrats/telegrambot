@@ -2,8 +2,6 @@ from django.shortcuts import render
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import logout
 
-# from bot.views import keep_fetching
-
 
 def home_view(request):
     # keep_fetching()

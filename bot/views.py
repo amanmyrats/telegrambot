@@ -1,9 +1,13 @@
+import logging
+
 from django.shortcuts import render
 from django.http import JsonResponse
 
 from .tasks import keep_fetching
 from .utils import set_bot_status, get_bot_status
 
+
+logger = logging.getLogger('django')
 
 def status_view(request):
     is_running = get_bot_status()

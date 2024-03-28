@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/5.0/ref/settings/
 """
 
 from pathlib import Path
+import os
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -153,3 +154,35 @@ ASGI_APPLICATION = "core.asgi.application"
 # CELERY_RESULT_BACKEND = 'djcelery'  # Use Django ORM for storing task results (optional)
 CELERY_ACCEPT_CONTENT = ['application/json']  # Recommended for JSON serialization
 CELERY_TASK_SERIALIZER = 'json'  # Recommended for JSON serialization
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'file_debug': {
+            'level': 'DEBUG',
+            'class': 'logging.FileHandler',
+            'filename': os.path.join(BASE_DIR, 'logs/debug.txt'),
+        },
+        'file_info': {
+            'level': 'INFO',
+            'class': 'logging.FileHandler',
+            'filename': os.path.join(BASE_DIR, 'logs/info.txt'),
+        },
+        'file_error': {
+            'level': 'ERROR',
+            'class': 'logging.FileHandler',
+            'filename': os.path.join(BASE_DIR, 'logs/error.txt'),
+        },
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['file_debug', 'file_info', 'file_error'],
+            'level': 'INFO',
+            'propagate': True,  # Inherit logs of child loggers
+        },
+
+        # Add custom loggers here if needed (optional)
+    },
+}
+
